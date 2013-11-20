@@ -14,8 +14,6 @@
 typedef int16x8_t __m128i;
 typedef float32x4_t __m128;
 
-//#define __constrange(min,max)  const
-//#define __transfersize(size)
 
 // ADDITION
 inline __m128i _mm_add_epi16(const __m128i& a, const __m128i& b){
@@ -63,7 +61,6 @@ inline __m128 _mm_set1_ps(const float32_t& w){
 
 // STORE
 inline void _mm_storeu_si128(__m128i* p, __m128i& a){
-//    a = *p; // TODO vst1q_s16
     vst1q_s16(reinterpret_cast<int16_t*>(p),reinterpret_cast<int16x8_t>(a));
 }
 
@@ -74,23 +71,22 @@ inline void _mm_store_ps(float32_t* p, __m128&a){
 
 // LOAD
 inline __m128i _mm_loadu_si128(__m128i* p){//For SSE address p does not need be 16-byte aligned
-    return reinterpret_cast<int16x8_t>(vld1q_s16(reinterpret_cast<int16_t*>(p)));
+    return reinterpret_cast<__m128i>(vld1q_s16(reinterpret_cast<int16_t*>(p)));
 }
 
 inline __m128i _mm_load_si128(__m128i* p){//For SSE address p must be 16-byte aligned
-    return reinterpret_cast<int16x8_t>(vld1q_s16(reinterpret_cast<int16_t*>(p)));
+    return reinterpret_cast<__m128i>(vld1q_s16(reinterpret_cast<int16_t*>(p)));
 }
 
 inline __m128 _mm_load_ps(const float32_t* p){
-    return vld1q_f32(p);
+    return reinterpret_cast<__m128i>(vld1q_f32(p));
 }
 
 
 // SHIFT OPERATIONS
 inline __m128i _mm_srai_epi16(const __m128i& a, const int count){
-//    return (int16x8_t){a[0]>>count,usw.};
     int16x8_t b = vmovq_n_s16(-count);
-    return vshlq_s16(a,b);
+    return reinterpret_cast<__m128i>(vshlq_s16(a,b));
 //    return vrshrq_n_s16(a, count);// TODO Argument to '__builtin_neon_vrshrq_n_v' must be a constant integer
 }
 
@@ -119,6 +115,8 @@ inline __m128i _mm_sad_epu8 (const __m128i& a, const __m128i& b){
 
 
 // LOGICAL OPERATIONS
+// The original SSE function outputs zeros if the input vectors contain zeros and different values (not only 1.0?!) otherwise
+// This function only outputs zeros and ones
 inline __m128 _mm_and_ps(__m128& a, __m128& b){
     __m128 result;
     float32_t* result_ptr = reinterpret_cast<float32_t*>(&result);
@@ -134,23 +132,22 @@ inline __m128 _mm_and_ps(__m128& a, __m128& b){
 
 // CONVERSIONS
 inline __m128i _mm_packus_epi16 (const __m128i a, const __m128i b){
-    __m128i result = _mm_setzero_si128();// = new __m128i;
+    __m128i result = _mm_setzero_si128();
     int8x8_t* a_narrow = reinterpret_cast<int8x8_t*>(&result);
     int8x8_t* b_narrow = &a_narrow[1];
-    *a_narrow = vqmovun_s16(a);//vqmovn_s16(a);
-    *b_narrow = vqmovun_s16(b);//vqmovn_s16(b);
-//    __m128i result;
-//    vst1_s8(&a_narrow,reinterpret_cast<int8x8_t*>(&result)[0]);
-//    vst1_s8(&b_narrow,reinterpret_cast<int8x8_t*>(&result)[8]);
+    *a_narrow = vqmovun_s16(a);
+    *b_narrow = vqmovun_s16(b);
     return result;
 }
 
+// In my case this function was only needed to convert 8 bit to 16 bit integers by extending with zeros, the general case is not implemented!!!
 inline __m128i _mm_unpacklo_epi8(__m128i a, const __m128i dummy_zero){
     // dummy_zero is a dummy variable
     uint8x8_t* a_low = reinterpret_cast<uint8x8_t*>(&a);
     return reinterpret_cast<__m128i>(vmovl_u8(*a_low));
 }
 
+// In my case this function was only needed to convert 8 bit to 16 bit integers by extending with zeros, the general case is not implemented!!!
 inline __m128i _mm_unpackhi_epi8(__m128i a, const __m128i dummy_zero){
     // dummy_zero is a dummy variable
     uint8x8_t* a_low = reinterpret_cast<uint8x8_t*>(&a);
