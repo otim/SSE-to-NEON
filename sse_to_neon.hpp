@@ -81,13 +81,12 @@ inline __m128i _mm_load_si128(__m128i* p){//For SSE address p must be 16-byte al
     return reinterpret_cast<int16x8_t>(vld1q_s16(reinterpret_cast<int16_t*>(p)));
 }
 
-inline __m128 _mm_load_ps(float32_t* p){
+inline __m128 _mm_load_ps(const float32_t* p){
     return vld1q_f32(p);
 }
 
 
 // SHIFT OPERATIONS
-//__m128i _mm_srai_epi16(__m128i a, __constrange(1,16) int count);
 inline __m128i _mm_srai_epi16(const __m128i& a, const int count){
 //    return (int16x8_t){a[0]>>count,usw.};
     int16x8_t b = vmovq_n_s16(-count);
@@ -110,7 +109,7 @@ inline int16_t _mm_extract_epi16(__m128i& a, int index){
 
 
 // MISCELLANOUS
-inline __m128i _mm_sad_epu8 (const __m128i& a, __m128i& b){
+inline __m128i _mm_sad_epu8 (const __m128i& a, const __m128i& b){
     uint64x2_t sad = reinterpret_cast<uint64x2_t>(vabdq_u8(a,b));
     sad = reinterpret_cast<uint64x2_t>(vpaddlq_u8(reinterpret_cast<uint8x16_t>(sad)));
     sad = reinterpret_cast<uint64x2_t>(vpaddlq_u16(reinterpret_cast<uint16x8_t>(sad)));
