@@ -10,7 +10,7 @@ Translating instructions will never be as efficient as building up your algorith
 Usage:
 
 	#if defined(__ARM_NEON__)
-	#include "SSE to NEON/sse_to_neon.hpp"
+	#include "SSE-to-NEON/sse_to_neon.hpp"
 	#else
 	#include <emmintrin.h>
 	#endif

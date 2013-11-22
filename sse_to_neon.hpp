@@ -11,6 +11,41 @@
 
 #include <arm_neon.h>
 
+#if defined(__MM_MALLOC_H)
+// copied from mm_malloc.h {
+#include <stdlib.h>
+
+/* We can't depend on <stdlib.h> since the prototype of posix_memalign
+ may not be visible.  */
+#ifndef __cplusplus
+extern int posix_memalign (void **, size_t, size_t);
+#else
+extern "C" int posix_memalign (void **, size_t, size_t) throw ();
+#endif
+
+static __inline void *
+_mm_malloc (size_t size, size_t alignment)
+{
+    void *ptr;
+    if (alignment == 1)
+        return malloc (size);
+    if (alignment == 2 || (sizeof (void *) == 8 && alignment == 4))
+        alignment = sizeof (void *);
+    if (posix_memalign (&ptr, alignment, size) == 0)
+        return ptr;
+    else
+        return NULL;
+}
+
+static __inline void
+_mm_free (void * ptr)
+{
+    free (ptr);
+}
+// } copied from mm_malloc.h
+#endif
+
+
 typedef int16x8_t __m128i;
 typedef float32x4_t __m128;
 
@@ -79,7 +114,7 @@ inline __m128i _mm_load_si128(__m128i* p){//For SSE address p must be 16-byte al
 }
 
 inline __m128 _mm_load_ps(const float32_t* p){
-    return reinterpret_cast<__m128i>(vld1q_f32(p));
+    return reinterpret_cast<__m128>(vld1q_f32(p));
 }
 
 
@@ -87,26 +122,26 @@ inline __m128 _mm_load_ps(const float32_t* p){
 inline __m128i _mm_srai_epi16(const __m128i& a, const int count){
     int16x8_t b = vmovq_n_s16(-count);
     return reinterpret_cast<__m128i>(vshlq_s16(a,b));
-//    return vrshrq_n_s16(a, count);// TODO Argument to '__builtin_neon_vrshrq_n_v' must be a constant integer
+    //    return vrshrq_n_s16(a, count);// TODO Argument to '__builtin_neon_vrshrq_n_v' must be a constant integer
 }
 
 
 // MIN/MAX OPERATIONS
-inline __m128i _mm_max_ps(const __m128i& a, const __m128i& b){
-    return reinterpret_cast<__m128i>(vmaxq_f32(reinterpret_cast<float32x4_t>(a),reinterpret_cast<float32x4_t>(b)));
+inline __m128 _mm_max_ps(const __m128& a, const __m128& b){
+    return reinterpret_cast<__m128>(vmaxq_f32(reinterpret_cast<float32x4_t>(a),reinterpret_cast<float32x4_t>(b)));
 }
 
 
 // SINGLE ELEMENT ACCESS
 inline int16_t _mm_extract_epi16(__m128i& a, int index){
     return (reinterpret_cast<int16_t*>(&a))[index];
-//    return vgetq_lane_s16(a,index);// TODO Argument to '__builtin_neon_vgetq_lane_i16' must be a constant integer
+    //    return vgetq_lane_s16(a,index);// TODO Argument to '__builtin_neon_vgetq_lane_i16' must be a constant integer
 }
 
 
 // MISCELLANOUS
-inline __m128i _mm_sad_epu8 (const __m128i& a, const __m128i& b){
-    uint64x2_t sad = reinterpret_cast<uint64x2_t>(vabdq_u8(a,b));
+inline __m128i _mm_sad_epu8 (__m128i a, __m128i b){
+    uint64x2_t sad = reinterpret_cast<uint64x2_t>(vabdq_u8(reinterpret_cast<uint8x16_t>(a),reinterpret_cast<uint8x16_t>(b)));
     sad = reinterpret_cast<uint64x2_t>(vpaddlq_u8(reinterpret_cast<uint8x16_t>(sad)));
     sad = reinterpret_cast<uint64x2_t>(vpaddlq_u16(reinterpret_cast<uint16x8_t>(sad)));
     sad = vpaddlq_u32(reinterpret_cast<uint32x4_t>(sad));
@@ -115,18 +150,8 @@ inline __m128i _mm_sad_epu8 (const __m128i& a, const __m128i& b){
 
 
 // LOGICAL OPERATIONS
-// The original SSE function outputs zeros if the input vectors contain zeros and different values (not only 1.0?!) otherwise
-// This function only outputs zeros and ones
 inline __m128 _mm_and_ps(__m128& a, __m128& b){
-    __m128 result;
-    float32_t* result_ptr = reinterpret_cast<float32_t*>(&result);
-    float32_t* a_ptr = reinterpret_cast<float32_t*>(&a);
-    float32_t* b_ptr = reinterpret_cast<float32_t*>(&b);
-    result_ptr[0] = a_ptr[0] && b_ptr[0];
-    result_ptr[1] = a_ptr[1] && b_ptr[1];
-    result_ptr[2] = a_ptr[2] && b_ptr[2];
-    result_ptr[3] = a_ptr[3] && b_ptr[3];
-    return result;
+    return reinterpret_cast<__m128>(vandq_u32(reinterpret_cast<uint32x4_t>(a),reinterpret_cast<uint32x4_t>(b)));
 }
 
 
@@ -135,8 +160,8 @@ inline __m128i _mm_packus_epi16 (const __m128i a, const __m128i b){
     __m128i result = _mm_setzero_si128();
     int8x8_t* a_narrow = reinterpret_cast<int8x8_t*>(&result);
     int8x8_t* b_narrow = &a_narrow[1];
-    *a_narrow = vqmovun_s16(a);
-    *b_narrow = vqmovun_s16(b);
+    *a_narrow = reinterpret_cast<int8x8_t>(vqmovun_s16(a));
+    *b_narrow = reinterpret_cast<int8x8_t>(vqmovun_s16(b));
     return result;
 }
 
